@@ -1,0 +1,18 @@
+# Arquivos de ambiente
+.env
+*.env
+
+# Cache do Python
+__pycache__/
+*.py[cod]
+
+# Logs
+*.log
+
+# Configs locais
+.vscode/
+.idea/
+
+# Dados temporários
+*.sqlite3
+*.db
