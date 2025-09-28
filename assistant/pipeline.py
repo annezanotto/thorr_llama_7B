@@ -129,7 +129,29 @@ def refine_tables_thorr(question: str, retrieved_tables: list, all_dfs: dict, mo
 def generate_sql_query_from_refined(question: str, refined_dfs: dict) -> str:
     
     schema_string = ""
-    # ... (código que constrói schema_string permanece o mesmo) ...
+    for table_name, df in refined_dfs.items():
+            # Adiciona o nome da tabela
+            schema_string += f"Tabela: {table_name}\n"
+            
+            col_examples = []
+            for col in df.columns:
+                # Tenta obter os 3 primeiros valores não nulos de forma segura
+                try:
+                    # 1. Converte a coluna para string antes de pegar amostras para evitar falhas de tipo.
+                    sample_values = df[col].dropna().head(3).astype(str).tolist()
+                except Exception as e:
+                    # Se falhar, usa uma mensagem de segurança em vez de travar
+                    # print(f"AVISO: Falha ao obter amostras para a coluna {col} na tabela {table_name}: {e}")
+                    sample_values = ["Dados indisponíveis"]
+                
+                example_str = f"Exemplo(s): {sample_values}"
+                
+                # Adiciona ao esquema da tabela
+                col_examples.append(f"- Coluna '{col}': {example_str}")
+                
+            # Junta todas as colunas e exemplos e adiciona nova linha entre tabelas
+            schema_string += "\n".join(col_examples)
+            schema_string += "\n\n" 
 
     system_message = config.SQL_GENERATION_SYSTEM_PROMPT
     user_message = (f"Esquema de banco de dados:\n{schema_string}\n\n"
