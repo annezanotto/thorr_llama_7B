@@ -9,6 +9,10 @@ def classify_intent(question: str) -> str:
     system_message = """    Você é um especialista em classificar a intenção do usuário para um assistente de dados imobiliários.
     Analise a pergunta do usuário e determine se ela pode ser respondida por uma consulta a um banco de dados (SQL_QUERY) ou se é uma conversa geral (GENERAL_CONVERSATION).
 
+    REGRAS DE SAÍDA CRUCIAIS:
+    1. Responda **APENAS** com um objeto JSON.
+    2. **NÃO INCLUA** NENHUM texto, markdown (como ```json) ou explicação fora do objeto JSON.
+    3. O formato deve ser EXATAMENTE: {"intent": "INTENÇÃO_CLASSIFICADA"}
     - SQL_QUERY: Perguntas sobre quantidades, listas, médias, valores, contagens, rankings ou detalhes específicos de dados que estão no banco (unidades, prédios, preços, características).
     Exemplos: 'Qual a unidade mais cara?', 'Liste os prédios da Melnick Even', 'Quantos imóveis temos em Porto Alegre?'
 
