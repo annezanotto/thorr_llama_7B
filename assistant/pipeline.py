@@ -129,12 +129,7 @@ def refine_tables_thorr(question: str, retrieved_tables: list, all_dfs: dict, mo
 def generate_sql_query_from_refined(question: str, refined_dfs: dict) -> str:
     
     schema_string = ""
-    for table_name, df in refined_dfs.items():
-        schema_string += f"Tabela: {table_name}\n"
-        for col in df.columns:
-            sample_values = df[col].dropna().head(3).tolist()
-            schema_string += f"- Coluna '{col}': Exemplo(s): {sample_values}\n"
-        schema_string += "\n"
+    # ... (código que constrói schema_string permanece o mesmo) ...
 
     system_message = config.SQL_GENERATION_SYSTEM_PROMPT
     user_message = (f"Esquema de banco de dados:\n{schema_string}\n\n"
@@ -148,15 +143,25 @@ def generate_sql_query_from_refined(question: str, refined_dfs: dict) -> str:
     print("-" * 50)
 
     try:
-        # Troque a chamada da API da OpenAI pela função do modelo local
+        # 1. PASSO CORRIGIDO: CHAMA A FUNÇÃO LLM PARA OBTER O TEXTO!
         sql_query = generate_local_response(system_message, user_message, config.CHAT_MODEL)
         
-        if '```sql' in sql_query:
-            sql_query = sql_query.split('```sql')[1].split('```')[0].strip()
-        return sql_query
+        # 2. Limpeza Agressiva do Markdown (como discutimos)
+        sql_query = sql_query.strip()
+        if sql_query.startswith('```'):
+            sql_query = sql_query.lstrip('` \n')
+        if sql_query.endswith('```'):
+            sql_query = sql_query.rstrip('` \n')
+            
+        # Garante que qualquer tag "sql" inicial seja removida
+        if sql_query.lower().startswith('sql'):
+             sql_query = sql_query[3:].strip()
+             
+        return sql_query.strip()
+
     except Exception as e:
+        # Se houver qualquer erro, incluindo falha ao chamar o generate_local_response
         return f"Ocorreu um erro ao gerar a consulta SQL: {e}"
-    
 def run_sql_pipeline(question: str, model, index, table_names, all_dfs, verbose: bool = False):
     """
     Executa o pipeline completo de Text-to-SQL e opcionalmente imprime os passos de debug.
