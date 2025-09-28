@@ -1,5 +1,5 @@
 # assistant/local_llm.py
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import torch
 
 # Dicionário para armazenar o modelo e o tokenizer após o carregamento inicial
@@ -9,7 +9,19 @@ def get_local_llm_pipeline(model_name: str):
     if model_name not in _model_cache:
         print(f"Carregando modelo local: {model_name}")
         tokenizer = AutoTokenizer.from_pretrained(model_name)
-        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto")
+
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.bfloat16 
+        )
+
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name, 
+            quantization_config=bnb_config, # <-- Use a nova config
+            device_map="auto"
+        )
+        
         _model_cache[model_name] = {"tokenizer": tokenizer, "model": model}
     
     return _model_cache[model_name]["tokenizer"], _model_cache[model_name]["model"]
@@ -17,14 +29,13 @@ def get_local_llm_pipeline(model_name: str):
 def generate_local_response(system_prompt: str, user_prompt: str, model_name: str) -> str:
     tokenizer, model = get_local_llm_pipeline(model_name)
     
-    # Formata o prompt para o modelo de acordo com o chat template
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_prompt}
-    ]
+    # 1. Formato da mensagem de Sistema (System Prompt)
+    system_message_formatted = f"<<SYS>>\n{system_prompt}\n<</SYS>>\n\n"
     
-    input_text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-    
+    # 2. Formato final do Prompt
+    # O Llama 2 usa a estrutura [INST] para instruções e /s para início/fim de diálogo.
+    input_text = f"<s>[INST] {system_message_formatted}{user_prompt} [/INST]"
+        
     # Gera a resposta
     inputs = tokenizer(input_text, return_tensors="pt").to(model.device)
     outputs = model.generate(**inputs, max_new_tokens=256, temperature=0.7)
@@ -32,4 +43,8 @@ def generate_local_response(system_prompt: str, user_prompt: str, model_name: st
     response = tokenizer.decode(outputs[0], skip_special_tokens=True)
     
     # Remove o prompt original da resposta
-    return response.replace(input_text, "").strip()
+    response_start_tag = "[/INST]"
+    if response_start_tag in response:
+        response = response.split(response_start_tag, 1)[1].strip()
+        
+    return response.strip()
