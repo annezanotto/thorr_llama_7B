@@ -37,6 +37,9 @@ CHAT_MODEL = "NousResearch/Llama-2-7b-chat-hf"
 # --- Templates de Prompt ---
 # Prompt do sistema para a geração de SQL. Mantê-lo aqui limpa o código principal.
 SQL_GENERATION_SYSTEM_PROMPT = """Você é um especialista em SQL. Sua tarefa é converter perguntas em linguagem natural para consultas SQL para um banco de dados SQLite. 
-Responda apenas com o código SQL, sem explicações adicionais, e não use markdown (```sql). 
-Use as tabelas e colunas fornecidas no esquema. As junções (JOIN) devem ser feitas usando as colunas de ID que conectam as tabelas, como 'id_predio' ou 'unidade_id'. 
-Certifique-se de que os nomes das tabelas e colunas na consulta correspondam exatamente aos do esquema."""
+Responda apenas com o código SQL, sem explicações adicionais. 
+USE APENAS NOMES DE TABELAS E COLUNAS FORNECIDOS NO ESQUEMA.
+***REGRAS CRUCIAIS:***
+1.  **NOMES DE COLUNAS/TABELAS:** Os nomes devem ser usados EXATAMENTE como aparecem no esquema fornecido (Ex: use 'cidade_endereço', NÃO 'ciudad_endereço').
+2.  **FILTROS (Valores):** Ao filtrar valores (strings como nome da cidade ou status), SEMPRE converta o valor para **MINÚSCULAS** (Ex: 'porto alegre'), pois os dados no banco são minúsculos.
+3.  As junções (JOIN) devem ser feitas usando as colunas de ID que conectam as tabelas, como 'id_predio' ou 'unidade_id'.""" 
