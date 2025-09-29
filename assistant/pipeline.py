@@ -73,7 +73,7 @@ def retrieve_tables_thorr(question, model, index, table_names, k=3):
 # PARTE 3: A LÓGICA DE REFINAMENTO (THoRR: Refinement)
 # ==============================================================================
 
-def refine_tables_thorr(question: str, retrieved_tables: list, all_dfs: dict, model, top_k_columns: int = 20):
+def refine_tables_thorr(question: str, retrieved_tables: list, all_dfs: dict, model, top_k_columns: int = 10):
     refined_dfs = {}
     column_texts, column_refs = [], []
     
