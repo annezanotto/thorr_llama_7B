@@ -123,67 +123,67 @@ def refine_tables_thorr(question: str, retrieved_tables: list, all_dfs: dict, mo
     return refined_dfs
 
 # ==============================================================================
-# PARTE 4: INTEGRAÇÃO COM O LLM (ChatGPT)
+# PARTE 4: INTEGRAÇÃO COM O LLM PARA GERAÇÃO DE SQL
 # ==============================================================================
 
 def generate_sql_query_from_refined(question: str, refined_dfs: dict) -> str:
-    
+    # Monta o esquema detalhado com exemplos
     schema_string = ""
     for table_name, df in refined_dfs.items():
-            # Adiciona o nome da tabela
-            schema_string += f"Tabela: {table_name}\n"
+        schema_string += f"Tabela: {table_name}\n"
+        
+        col_examples = []
+        for col in df.columns:
+            try:
+                sample_values = df[col].dropna().head(3).astype(str).tolist()
+            except Exception:
+                sample_values = ["Dados indisponíveis"]
             
-            col_examples = []
-            for col in df.columns:
-                # Tenta obter os 3 primeiros valores não nulos de forma segura
-                try:
-                    # 1. Converte a coluna para string antes de pegar amostras para evitar falhas de tipo.
-                    sample_values = df[col].dropna().head(3).astype(str).tolist()
-                except Exception as e:
-                    # Se falhar, usa uma mensagem de segurança em vez de travar
-                    # print(f"AVISO: Falha ao obter amostras para a coluna {col} na tabela {table_name}: {e}")
-                    sample_values = ["Dados indisponíveis"]
-                
-                example_str = f"Exemplo(s): {sample_values}"
-                
-                # Adiciona ao esquema da tabela
-                col_examples.append(f"- Coluna '{col}': {example_str}")
-                
-            # Junta todas as colunas e exemplos e adiciona nova linha entre tabelas
-            schema_string += "\n".join(col_examples)
-            schema_string += "\n\n" 
+            example_str = f"Exemplo(s): {sample_values}"
+            col_examples.append(f"- Coluna '{col}': {example_str}")
+        
+        schema_string += "\n".join(col_examples)
+        schema_string += "\n\n"
 
+    # 🔹 Cria o prompt delimitado
     system_message = config.SQL_GENERATION_SYSTEM_PROMPT
-    user_message = (f"Esquema de banco de dados:\n{schema_string}\n\n"
-                    f"Pergunta do usuário: {question}\n\n"
-                    "Consulta SQL:")
-    
+    user_message = (
+        "### ESQUEMA DE BANCO DE DADOS ###\n"
+        f"{schema_string}\n\n"
+        "### PERGUNTA DO USUÁRIO ###\n"
+        f"{question}\n\n"
+        "### INSTRUÇÃO ###\n"
+        "Gere apenas a consulta SQL correspondente, sem explicações adicionais.\n"
+        "⚠️ IMPORTANTE: Use exatamente os nomes de colunas e tabelas acima, "
+        "sem traduzir ou modificar (ex: use 'cidade_endereço', não 'ciudad_endereço').\n"
+        "Certifique-se também de converter valores de filtros (como nomes de cidades ou status) para letras minúsculas.\n\n"
+        "### SAÍDA ESPERADA ###\n"
+        "Consulta SQL:"
+    )
+
     print("-" * 50)
-    print("Conteúdo do prompt enviado ao ChatGPT:")
+    print("Conteúdo do prompt enviado ao modelo:")
     print("-" * 50)
     print(user_message)
     print("-" * 50)
 
     try:
-        # 1. PASSO CORRIGIDO: CHAMA A FUNÇÃO LLM PARA OBTER O TEXTO!
         sql_query = generate_local_response(system_message, user_message, config.CHAT_MODEL)
         
-        # 2. Limpeza Agressiva do Markdown (como discutimos)
+        # 🔹 Limpeza agressiva do markdown
         sql_query = sql_query.strip()
         if sql_query.startswith('```'):
             sql_query = sql_query.lstrip('` \n')
         if sql_query.endswith('```'):
             sql_query = sql_query.rstrip('` \n')
-            
-        # Garante que qualquer tag "sql" inicial seja removida
         if sql_query.lower().startswith('sql'):
-             sql_query = sql_query[3:].strip()
-             
+            sql_query = sql_query[3:].strip()
+        
         return sql_query.strip()
 
     except Exception as e:
-        # Se houver qualquer erro, incluindo falha ao chamar o generate_local_response
         return f"Ocorreu um erro ao gerar a consulta SQL: {e}"
+
 def run_sql_pipeline(question: str, model, index, table_names, all_dfs, verbose: bool = False):
     """
     Executa o pipeline completo de Text-to-SQL e opcionalmente imprime os passos de debug.
