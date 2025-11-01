@@ -128,15 +128,34 @@ def refine_tables_thorr(question: str, retrieved_tables: list, all_dfs: dict, mo
 
 def generate_sql_query_from_refined(question: str, refined_dfs: dict) -> str:
     import re
-
-    # Monta o esquema detalhado com exemplos
+    import pandas as pd
+    
+    # Monta o esquema detalhado com formato DDL e exemplos
     schema_string = ""
     for table_name, df in refined_dfs.items():
-        schema_string += f"Tabela: {table_name}\n"
-
+        # --- 1. BLOCO DDL (CRIAÇÃO DA TABELA) ---
+        schema_string += f"CREATE TABLE {table_name} (\n"
+        
+        col_definitions = []
+        for col in df.columns:
+            # Tenta inferir o tipo SQL baseado no Pandas dtype para dar mais contexto
+            # Assumimos que a maioria dos IDs e valores normalizados são TEXT ou REAL
+            sql_type = 'TEXT' 
+            if pd.api.types.is_numeric_dtype(df[col]):
+                sql_type = 'REAL' if pd.api.types.is_float_dtype(df[col]) else 'INTEGER'
+            
+            # Adiciona o nome da coluna e o tipo
+            col_definitions.append(f"  {col} {sql_type}")
+            
+        schema_string += ",\n".join(col_definitions)
+        schema_string += "\n);\n\n"
+        
+        # --- 2. BLOCO DE AMOSTRAS ---
+        schema_string += f"--- Amostras de dados para {table_name} ---\n"
         col_examples = []
         for col in df.columns:
             try:
+                # Sua lógica robusta de amostragem
                 sample_values = df[col].dropna().head(3).astype(str).tolist()
             except Exception:
                 sample_values = ["Dados indisponíveis"]
@@ -147,6 +166,8 @@ def generate_sql_query_from_refined(question: str, refined_dfs: dict) -> str:
         schema_string += "\n".join(col_examples)
         schema_string += "\n\n"
 
+
+    # Adiciona as relações (Regras de JOIN)
     schema_string += "### RELAÇÕES ENTRE TABELAS ###\n"
     schema_string += (
         "- buildings.id_predio = typologies.id_predio\n"
@@ -158,19 +179,20 @@ def generate_sql_query_from_refined(question: str, refined_dfs: dict) -> str:
     # 🔹 Cria o prompt delimitado
     system_message = config.SQL_GENERATION_SYSTEM_PROMPT
     user_message = (
-        "### ESQUEMA DE BANCO DE DADOS ###\n"
+        "### ESQUEMA DE BANCO DE DADOS (DDL) ###\n"
         f"{schema_string}\n\n"
         "### PERGUNTA DO USUÁRIO ###\n"
         f"{question}\n\n"
         "### INSTRUÇÃO ###\n"
         "Gere apenas a consulta SQL correspondente, sem explicações adicionais.\n"
-        "⚠️ IMPORTANTE: Use exatamente os nomes de colunas e tabelas acima, "
-        "sem traduzir ou modificar (ex: use 'cidade_endereço', não 'ciudad_endereço').\n"
-        "Certifique-se também de converter valores de filtros (como nomes de cidades ou status) para letras minúsculas.\n\n"
+        "⚠️ IMPORTANTE: Use EXATAMENTE os nomes de colunas e tabelas do DDL. Não traduza ou modifique. "
+        "Ao filtrar valores (strings), SEMPRE use minúsculas.\n\n"
         "### SAÍDA ESPERADA ###\n"
         "Consulta SQL:"
     )
 
+    # ... (Restante da lógica de print e try/except para a chamada do LLM e limpeza)
+    
     print("-" * 50)
     print("Conteúdo do prompt enviado ao modelo:")
     print("-" * 50)
@@ -180,7 +202,7 @@ def generate_sql_query_from_refined(question: str, refined_dfs: dict) -> str:
     try:
         sql_query = generate_local_response(system_message, user_message, config.CHAT_MODEL)
 
-        # 🔹 Limpeza agressiva do markdown e prefixos
+        # 🔹 Limpeza agressiva do markdown e prefixos (Mantida e Correta)
         sql_query = sql_query.strip()
         sql_query = sql_query.strip("` \n")
         sql_query = re.sub(r'(?i)^sql\s*[:\-]*', '', sql_query).strip()
@@ -190,7 +212,6 @@ def generate_sql_query_from_refined(question: str, refined_dfs: dict) -> str:
 
     except Exception as e:
         return f"Ocorreu um erro ao gerar a consulta SQL: {e}"
-# ==============================================================================
 
 def run_sql_pipeline(question: str, model, index, table_names, all_dfs, verbose: bool = False):
     """
