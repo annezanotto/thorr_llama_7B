@@ -143,9 +143,16 @@ def generate_sql_query_from_refined(question: str, refined_dfs: dict) -> str:
             col_examples.append(f"- Coluna '{col}': {example_str}")
         
         schema_string += "\n".join(col_examples)
+        schema_string += "\n### RELAÇÕES ENTRE TABELAS ###\n"
+        schema_string += (
+            "- buildings.id_predio = typologies.id_predio\n"
+            "- buildings.id_predio = units.id_predio\n"
+            "- typologies.id_tipologia = units.id_tipologia\n"
+            "- units.id_unidade = units_updates.id_unidade\n\n"
+        )
         schema_string += "\n\n"
 
-    # 🔹 Cria o prompt delimitado
+    #  Cria o prompt delimitado
     system_message = config.SQL_GENERATION_SYSTEM_PROMPT
     user_message = (
         "### ESQUEMA DE BANCO DE DADOS ###\n"
@@ -225,7 +232,6 @@ def run_sql_pipeline(question: str, model, index, table_names, all_dfs, verbose:
     return sql_query
 
 def handle_data_assistance(question: str, all_dfs: dict) -> str:
-    # A lógica para construir o esquema de dados permanece a mesma
     schema_string = ""
     for table_name, df in all_dfs.items():
         schema_string += f"Tabela: {table_name}\n"
@@ -243,45 +249,3 @@ def handle_data_assistance(question: str, all_dfs: dict) -> str:
     except Exception as e:
         return f"Desculpe, ocorreu um erro ao processar sua solicitação sobre o esquema dos dados: {e}"
 
-# ==============================================================================
-# TRECHO DE EXECUÇÃO DE EXEMPLO (PARA TESTE)
-# ==============================================================================
-
-# if __name__ == "__main__":
-#     print("Iniciando o carregamento dos dados...")
-#     # ALTERADO: load_data agora só retorna os dataframes
-#     dfs = load_data()
-#     print("Dados carregados com sucesso.\n")
-    
-#     print(f"Carregando o modelo '{config.EMBEDDING_MODEL}'...")
-#     # ALTERADO: Nome do modelo vem do config
-#     model = SentenceTransformer(config.EMBEDDING_MODEL)
-#     print("Modelo carregado.\n")
-    
-#     print("Configurando FAISS...")
-#     # ALTERADO: Passa config.BASE_TEXTS para a função
-#     index, table_names, _, _ = setup_faiss_and_model(dfs, config.BASE_TEXTS, model)
-#     print("Configuração FAISS concluída.\n")
-
-#     question = "Quantas unidades a incorporadora melnick even tem? "
-#     print("=" * 50)
-#     print(f"DEBUG - Etapa 1: Recuperação de Tabelas")
-#     print(f"Pergunta: '{question}'")
-#     retrieved_tables = retrieve_tables_thorr(question, model, index, table_names)
-#     print(f"Tabelas recuperadas: {retrieved_tables}")
-#     print("=" * 50)
-    
-#     print("\n" + "=" * 50)
-#     print(f"DEBUG - Etapa 2: Refinamento de Colunas")
-#     refined_data = refine_tables_thorr(question, retrieved_tables, dfs, model)
-#     print("Dados refinados (tabelas e colunas):")
-#     for name, data in refined_data.items():
-#         print(f"\n--- Tabela '{name}' ---")
-#         print(data.head(2))
-#     print("=" * 50)
-    
-#     print("\n" + "=" * 50)
-#     print(f"DEBUG - Etapa 3: Geração da Consulta SQL")
-#     sql_query = generate_sql_query_from_refined(question, refined_data)
-#     print(f"\nConsulta SQL gerada:\n{sql_query}")
-#     print("=" * 50)

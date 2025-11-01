@@ -48,26 +48,25 @@ USE APENAS NOMES DE TABELAS E COLUNAS FORNECIDOS NO ESQUEMA.
 ### REGRAS CRUCIAIS ###
 
 1. **NOMES DE COLUNAS/TABELAS:** 
-   - Use exatamente como aparecem no esquema. 
+   - Use exatamente como aparecem no esquema.
    - ⚠️ Nunca traduza (ex: não use 'ciudad_endereço' se o nome correto for 'cidade_endereço').
-
-   **Exemplo:**
-   ❌ ERRADO: SELECT * FROM buildings WHERE ciudad_endereço = 'porto alegre';
-   ✅ CERTO:  SELECT * FROM buildings WHERE cidade_endereço = 'porto alegre';
 
 2. **FILTROS (Valores):** 
    - Sempre converta valores de texto para minúsculas.
    - Exemplo: WHERE cidade_endereço = 'porto alegre'
 
-3. **JUNÇÕES (JOIN):**
-   - Use apenas as relações abaixo:
+3. **RELAÇÕES ENTRE TABELAS (IMPORTANTÍSSIMO):**
    - buildings.id_predio = typologies.id_predio
    - buildings.id_predio = units.id_predio
+   - typologies.id_tipologia = units.id_tipologia
    - units.id_unidade = units_updates.id_unidade
 
-4. **FORMATO DE SAÍDA:**
-   - Retorne **apenas** o código SQL, sem comentários, explicações ou prefixos.
+4. **BOAS PRÁTICAS DE JOIN:**
+   - Sempre use JOIN ... ON ... para conectar tabelas.
+   - Nunca use colunas que não existem nas tabelas listadas no esquema.
+   - Evite SELECT * — selecione apenas as colunas necessárias.
 
-5. **CONSULTAS MAX/MIN:** Para encontrar o item 'mais caro' ou 'mais barato', use a função MAX() ou MIN() e evite o GROUP BY, a menos que seja estritamente necessário. Se precisar de múltiplas tabelas, use ORDER BY... DESC/ASC e LIMIT 1.
+5. **FORMATO DE SAÍDA:**
+   - Retorne **apenas** o código SQL, sem comentários, explicações ou prefixos.
 """
 
