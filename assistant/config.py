@@ -59,7 +59,8 @@ USE APENAS NOMES DE TABELAS E COLUNAS FORNECIDOS NO ESQUEMA.
    - Sempre converta valores de texto para minúsculas.
    - Exemplo: WHERE cidade_endereço = 'porto alegre'
 
-3. **RELAÇÕES ENTRE TABELAS (IMPORTANTE):**
+3. **JUNÇÕES (JOIN):**
+   - Use apenas as relações abaixo:
    - buildings.id_predio = typologies.id_predio
    - buildings.id_predio = units.id_predio
    - units.id_unidade = units_updates.id_unidade
