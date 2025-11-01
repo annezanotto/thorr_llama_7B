@@ -127,32 +127,35 @@ def refine_tables_thorr(question: str, retrieved_tables: list, all_dfs: dict, mo
 # ==============================================================================
 
 def generate_sql_query_from_refined(question: str, refined_dfs: dict) -> str:
+    import re
+
     # Monta o esquema detalhado com exemplos
     schema_string = ""
     for table_name, df in refined_dfs.items():
         schema_string += f"Tabela: {table_name}\n"
-        
+
         col_examples = []
         for col in df.columns:
             try:
                 sample_values = df[col].dropna().head(3).astype(str).tolist()
             except Exception:
                 sample_values = ["Dados indisponíveis"]
-            
+
             example_str = f"Exemplo(s): {sample_values}"
             col_examples.append(f"- Coluna '{col}': {example_str}")
-        
+
         schema_string += "\n".join(col_examples)
-        schema_string += "\n### RELAÇÕES ENTRE TABELAS ###\n"
-        schema_string += (
-            "- buildings.id_predio = typologies.id_predio\n"
-            "- buildings.id_predio = units.id_predio\n"
-            "- typologies.id_tipologia = units.id_tipologia\n"
-            "- units.id_unidade = units_updates.id_unidade\n\n"
-        )
         schema_string += "\n\n"
 
-    #  Cria o prompt delimitado
+    schema_string += "### RELAÇÕES ENTRE TABELAS ###\n"
+    schema_string += (
+        "- buildings.id_predio = typologies.id_predio\n"
+        "- buildings.id_predio = units.id_predio\n"
+        "- typologies.id_tipologia = units.id_tipologia\n"
+        "- units.id_unidade = units_updates.id_unidade\n\n"
+    )
+
+    # 🔹 Cria o prompt delimitado
     system_message = config.SQL_GENERATION_SYSTEM_PROMPT
     user_message = (
         "### ESQUEMA DE BANCO DE DADOS ###\n"
@@ -176,20 +179,18 @@ def generate_sql_query_from_refined(question: str, refined_dfs: dict) -> str:
 
     try:
         sql_query = generate_local_response(system_message, user_message, config.CHAT_MODEL)
-        
-        # 🔹 Limpeza agressiva do markdown
+
+        # 🔹 Limpeza agressiva do markdown e prefixos
         sql_query = sql_query.strip()
-        if sql_query.startswith('```'):
-            sql_query = sql_query.lstrip('` \n')
-        if sql_query.endswith('```'):
-            sql_query = sql_query.rstrip('` \n')
-        if sql_query.lower().startswith('sql'):
-            sql_query = sql_query[3:].strip()
-        
-        return sql_query.strip()
+        sql_query = sql_query.strip("` \n")
+        sql_query = re.sub(r'(?i)^sql\s*[:\-]*', '', sql_query).strip()
+        sql_query = re.sub(r'(?i)^consulta\s*sql\s*[:\-]*', '', sql_query).strip()
+
+        return sql_query
 
     except Exception as e:
         return f"Ocorreu um erro ao gerar a consulta SQL: {e}"
+# ==============================================================================
 
 def run_sql_pipeline(question: str, model, index, table_names, all_dfs, verbose: bool = False):
     """

@@ -4,12 +4,10 @@ from dotenv import load_dotenv
 
 # Carrega as variáveis do arquivo .env para o ambiente
 load_dotenv()
-
-# --- Chaves de API e Segurança ---
+# --- Configurações do Banco de Dados ---
 DB_FILE = "database.db"
 
 # --- Configurações de Arquivos e Pastas ---
-# Dicionário com os nomes das tabelas e seus respectivos arquivos
 DATA_FILES = {
     'buildings': 'tables/buildings.xlsx',
     'typologies': 'tables/typologies.xlsx',
