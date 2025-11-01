@@ -30,7 +30,7 @@ KEY_COLUMNS = ['id_unidade', 'id_predio', 'id_tipologia', 'atualização_id']
 
 # --- Configurações dos Modelos de IA ---
 EMBEDDING_MODEL = 'intfloat/multilingual-e5-large'
-CHAT_MODEL = "NousResearch/Llama-2-7b-chat-hf"
+CHAT_MODEL = "mistralai/Mistral-7B-Instruct-v0.2"
 
 # --- Templates de Prompt ---
 # Prompt do sistema para a geração de SQL. 

@@ -126,73 +126,100 @@ def refine_tables_thorr(question: str, retrieved_tables: list, all_dfs: dict, mo
 # PARTE 4: INTEGRAÇÃO COM O LLM PARA GERAÇÃO DE SQL
 # ==============================================================================
 
+def fix_invalid_columns(sql_query: str, refined_dfs: dict) -> str:
+    """Corrige colunas inexistentes ou mal escritas com base nas colunas reais dos DataFrames."""
+    all_columns = {}
+    for table, df in refined_dfs.items():
+        for col in df.columns:
+            all_columns[col] = table
+
+    words = sql_query.replace('(', ' ').replace(')', ' ').replace(',', ' ').split()
+    for word in words:
+        if '.' in word:
+            table, col = word.split('.', 1)
+            if table in refined_dfs and col not in refined_dfs[table].columns:
+                match = difflib.get_close_matches(col, refined_dfs[table].columns, n=1)
+                if match:
+                    sql_query = sql_query.replace(col, match[0])
+        else:
+            # Corrige colunas sem prefixo
+            if word in all_columns:
+                sql_query = sql_query.replace(word, f"{all_columns[word]}.{word}")
+    return sql_query
+
+
+# --------------------------------------------------
+ #Função principal: gera a query SQL a partir dos dados refinados
+# --------------------------------------------------
 def generate_sql_query_from_refined(question: str, refined_dfs: dict) -> str:
-    import re
-    import pandas as pd
-    
-    # Monta o esquema detalhado com formato DDL e exemplos
+    # Monta o esquema detalhado com exemplos
     schema_string = ""
     for table_name, df in refined_dfs.items():
-        # --- 1. BLOCO DDL (CRIAÇÃO DA TABELA) ---
-        schema_string += f"CREATE TABLE {table_name} (\n"
+        schema_string += f"Tabela: {table_name}\n"
         
-        col_definitions = []
-        for col in df.columns:
-            # Tenta inferir o tipo SQL baseado no Pandas dtype para dar mais contexto
-            # Assumimos que a maioria dos IDs e valores normalizados são TEXT ou REAL
-            sql_type = 'TEXT' 
-            if pd.api.types.is_numeric_dtype(df[col]):
-                sql_type = 'REAL' if pd.api.types.is_float_dtype(df[col]) else 'INTEGER'
-            
-            # Adiciona o nome da coluna e o tipo
-            col_definitions.append(f"  {col} {sql_type}")
-            
-        schema_string += ",\n".join(col_definitions)
-        schema_string += "\n);\n\n"
-        
-        # --- 2. BLOCO DE AMOSTRAS ---
-        schema_string += f"--- Amostras de dados para {table_name} ---\n"
         col_examples = []
         for col in df.columns:
             try:
-                # Sua lógica robusta de amostragem
                 sample_values = df[col].dropna().head(3).astype(str).tolist()
             except Exception:
                 sample_values = ["Dados indisponíveis"]
-
+            
             example_str = f"Exemplo(s): {sample_values}"
             col_examples.append(f"- Coluna '{col}': {example_str}")
-
+        
         schema_string += "\n".join(col_examples)
-        schema_string += "\n\n"
+        schema_string += "\n### RELAÇÕES ENTRE TABELAS ###\n"
+        schema_string += (
+            "- buildings.id_predio = typologies.id_predio\n"
+            "- buildings.id_predio = units.id_predio\n"
+            "- typologies.id_tipologia = units.id_tipologia\n"
+            "- units.id_unidade = units_updates.id_unidade\n\n"
+        )
 
+    # 🔹 Instruções adicionais e exemplos (few-shot)
+    guidance_examples = """
+### EXEMPLOS ###
+Pergunta: Quantos edifícios estão localizados na cidade de porto alegre?
+SQL: SELECT COUNT(*) FROM buildings WHERE cidade_endereço = 'porto alegre';
 
-    # Adiciona as relações (Regras de JOIN)
-    schema_string += "### RELAÇÕES ENTRE TABELAS ###\n"
-    schema_string += (
-        "- buildings.id_predio = typologies.id_predio\n"
-        "- buildings.id_predio = units.id_predio\n"
-        "- typologies.id_tipologia = units.id_tipologia\n"
-        "- units.id_unidade = units_updates.id_unidade\n\n"
-    )
+Pergunta: Qual a área média das unidades no bairro jardim europa?
+SQL: SELECT AVG(units.area_privativa)
+FROM units
+JOIN buildings ON units.id_predio = buildings.id_predio
+WHERE buildings.bairro_endereço = 'jardim europa';
 
-    # 🔹 Cria o prompt delimitado
+Pergunta: Qual a quantidade de prédios da incorporadora melnick even?
+SQL: SELECT COUNT(*) FROM buildings WHERE incorporadora_nome = 'melnick even';
+"""
+
+    # 🔹 Regras adicionais para reforçar comportamento correto
+    sql_guidelines = """
+### REGRAS ADICIONAIS ###
+- Sempre prefixe colunas com o nome da tabela (ex: buildings.cidade_endereço).
+- Nunca traduza nomes de colunas (use 'cidade_endereço', não 'ciudad_endereço').
+- Colunas de endereço (rua_endereço, bairro_endereço, cidade_endereço) pertencem APENAS à tabela 'buildings'.
+- Para calcular médias de área, use sempre 'units.area_privativa' (área da unidade) ou 'typologies.area_privada' (área da tipologia).
+- Quando a pergunta envolver localização (bairro ou cidade), faça JOIN com 'buildings'.
+"""
+
+    #  Cria o prompt delimitado
     system_message = config.SQL_GENERATION_SYSTEM_PROMPT
     user_message = (
-        "### ESQUEMA DE BANCO DE DADOS (DDL) ###\n"
-        f"{schema_string}\n\n"
+        f"{guidance_examples}\n\n"
+        "### ESQUEMA DE BANCO DE DADOS ###\n"
+        f"{schema_string}\n"
+        f"{sql_guidelines}\n\n"
         "### PERGUNTA DO USUÁRIO ###\n"
         f"{question}\n\n"
         "### INSTRUÇÃO ###\n"
         "Gere apenas a consulta SQL correspondente, sem explicações adicionais.\n"
-        "⚠️ IMPORTANTE: Use EXATAMENTE os nomes de colunas e tabelas do DDL. Não traduza ou modifique. "
-        "Ao filtrar valores (strings), SEMPRE use minúsculas.\n\n"
+        "⚠️ IMPORTANTE: Use exatamente os nomes de colunas e tabelas acima, "
+        "sem traduzir ou modificar (ex: use 'cidade_endereço', não 'ciudad_endereço').\n"
+        "Certifique-se também de converter valores de filtros (como nomes de cidades ou status) para letras minúsculas.\n\n"
         "### SAÍDA ESPERADA ###\n"
         "Consulta SQL:"
     )
 
-    # ... (Restante da lógica de print e try/except para a chamada do LLM e limpeza)
-    
     print("-" * 50)
     print("Conteúdo do prompt enviado ao modelo:")
     print("-" * 50)
@@ -200,15 +227,22 @@ def generate_sql_query_from_refined(question: str, refined_dfs: dict) -> str:
     print("-" * 50)
 
     try:
+        # 🔹 Geração local com modelo
         sql_query = generate_local_response(system_message, user_message, config.CHAT_MODEL)
-
-        # 🔹 Limpeza agressiva do markdown e prefixos (Mantida e Correta)
+        
+        # 🔹 Limpeza de markdown e prefixos indesejados
         sql_query = sql_query.strip()
-        sql_query = sql_query.strip("` \n")
-        sql_query = re.sub(r'(?i)^sql\s*[:\-]*', '', sql_query).strip()
-        sql_query = re.sub(r'(?i)^consulta\s*sql\s*[:\-]*', '', sql_query).strip()
+        if sql_query.startswith('```'):
+            sql_query = sql_query.lstrip('` \n')
+        if sql_query.endswith('```'):
+            sql_query = sql_query.rstrip('` \n')
+        if sql_query.lower().startswith('sql'):
+            sql_query = sql_query[3:].strip()
 
-        return sql_query
+        # 🔹 Correção automática de colunas inválidas
+        sql_query = fix_invalid_columns(sql_query, refined_dfs)
+        
+        return sql_query.strip()
 
     except Exception as e:
         return f"Ocorreu um erro ao gerar a consulta SQL: {e}"
