@@ -27,7 +27,7 @@ BASE_TEXTS = {
 }
 
 # Colunas-chave que devem ser mantidas durante o refinamento para garantir os JOINs
-KEY_COLUMNS = ['id_unidade', 'id_predio', 'id_tipologia', 'unidade_id', 'id_atualização']
+KEY_COLUMNS = ['id_unidade', 'id_predio', 'id_tipologia', 'atualização_id']
 
 
 # --- Configurações dos Modelos de IA ---
@@ -59,10 +59,14 @@ USE APENAS NOMES DE TABELAS E COLUNAS FORNECIDOS NO ESQUEMA.
    - Sempre converta valores de texto para minúsculas.
    - Exemplo: WHERE cidade_endereço = 'porto alegre'
 
-3. **JUNÇÕES (JOIN):**
-   - Use apenas colunas de ID que conectam tabelas, como 'id_predio' ou 'unidade_id'.
+3. **RELAÇÕES ENTRE TABELAS (IMPORTANTE):**
+   - buildings.id_predio = typologies.id_predio
+   - buildings.id_predio = units.id_predio
+   - units.id_unidade = units_updates.id_unidade
 
 4. **FORMATO DE SAÍDA:**
    - Retorne **apenas** o código SQL, sem comentários, explicações ou prefixos.
+
+5. **CONSULTAS MAX/MIN:** Para encontrar o item 'mais caro' ou 'mais barato', use a função MAX() ou MIN() e evite o GROUP BY, a menos que seja estritamente necessário. Se precisar de múltiplas tabelas, use ORDER BY... DESC/ASC e LIMIT 1.
 """
 
