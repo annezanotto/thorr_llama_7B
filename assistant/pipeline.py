@@ -10,6 +10,8 @@ from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
 import sqlite3
+import difflib
+
 
 from assistant import config
 
