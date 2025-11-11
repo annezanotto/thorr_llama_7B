@@ -154,7 +154,6 @@ def fix_invalid_columns(sql_query: str, refined_dfs: dict) -> str:
  #Função principal: gera a query SQL a partir dos dados refinados
 # --------------------------------------------------
 def generate_sql_query_from_refined(question: str, refined_dfs: dict) -> str:
-    # Monta o esquema detalhado com exemplos
     schema_string = ""
     for table_name, df in refined_dfs.items():
         schema_string += f"Tabela: {table_name}\n"
@@ -165,18 +164,18 @@ def generate_sql_query_from_refined(question: str, refined_dfs: dict) -> str:
                 sample_values = df[col].dropna().head(3).astype(str).tolist()
             except Exception:
                 sample_values = ["Dados indisponíveis"]
-            
-            example_str = f"Exemplo(s): {sample_values}"
-            col_examples.append(f"- Coluna '{col}': {example_str}")
+            col_examples.append(f"- Coluna '{col}': Exemplo(s): {sample_values}")
         
-        schema_string += "\n".join(col_examples)
-        schema_string += "\n### RELAÇÕES ENTRE TABELAS ###\n"
-        schema_string += (
-            "- buildings.id_predio = typologies.id_predio\n"
-            "- buildings.id_predio = units.id_predio\n"
-            "- typologies.id_tipologia = units.id_tipologia\n"
-            "- units.id_unidade = units_updates.id_unidade\n\n"
-        )
+        schema_string += "\n".join(col_examples) + "\n\n"
+
+    # adiciona as relações só uma vez
+    schema_string += "### RELAÇÕES ENTRE TABELAS ###\n"
+    schema_string += (
+        "- buildings.id_predio = typologies.id_predio\n"
+        "- buildings.id_predio = units.id_predio\n"
+        "- typologies.id_tipologia = units.id_tipologia\n"
+        "- units.id_unidade = units_updates.id_unidade\n\n"
+    )
 
     # 🔹 Instruções adicionais e exemplos (few-shot)
     guidance_examples = """

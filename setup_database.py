@@ -7,13 +7,11 @@ from unidecode import unidecode
 # --- Constantes de Configuração ---
 DB_FILE = "database.db"
 DATA_DIR = "tables" 
+CLEANED_DATA_DIR = "tables_cleaned" # <-- NOVO: Pasta para salvar os arquivos Excel limpos
 
 # --- FUNÇÃO DE NORMALIZAÇÃO DE CARACTERES (MANTIDA) ---
 def normalize_text_column(s):
-    """
-    Remove caracteres especiais, acentos e garante que o texto seja string limpa
-    e em minúsculas antes de salvar no DB.
-    """
+    # ... (código da função mantido) ...
     if s is None:
         return ""
     try:
@@ -23,42 +21,27 @@ def normalize_text_column(s):
     return unidecode(s).lower().strip()
 # -----------------------------
 
-# --- FUNÇÃO DE LIMPEZA DE QUALIDADE DE DADOS (NOVA) ---
+# --- FUNÇÃO DE LIMPEZA DE QUALIDADE DE DADOS (MANTIDA) ---
 def clean_dataframe(df, table_name):
-    """
-    Aplica filtros para remover outliers e dados nulos críticos, 
-    baseado na análise exploratória.
-    """
+    # ... (código da função clean_dataframe mantido - omisso aqui por brevidade) ...
     
     # --- 1. FILTROS DE OUTLIER E NULOS CRÍTICOS ---
-    
-    # Tabela Typologies: Nulos e Outliers de Área
     if table_name == 'typologies':
-        # Remove tipologias sem área privada ou sem contagem de quartos (crítico para análise)
         df = df.dropna(subset=['area_privada', 'quartos'])
-        
-        # Filtra Outliers Extremos de Área (acima do percentil 99.9 para áreas)
         if df['area_privada'].count() > 10:
             area_limit = df['area_privada'].quantile(0.999)
             df = df[df['area_privada'] <= area_limit]
 
-    # Tabela Units: Nulos e Outliers de Andar
     if table_name == 'units':
-        # Remove unidades sem área privada (crítico para qualquer cálculo de área)
         df = df.dropna(subset=['area_privativa'])
-        
-        # Filtra Outliers Extremos de Andar (Ex: Acima de 100 andares é erro de registro)
         if 'andar' in df.columns:
             df = df[df['andar'] <= 100]
-
-        # Filtra Outliers Extremos de Área Privativa
         if df['area_privativa'].count() > 10:
             area_limit = df['area_privativa'].quantile(0.999)
             df = df[df['area_privativa'] <= area_limit]
     
-    # --- 2. COLUNAS COM ALTO ÍNDICE DE DADOS FALTANTES (OPCIONALMENTE REMOVIDAS PARA LIMPAR O PROMPT) ---
+    # --- 2. REMOÇÃO DE RUÍDO ---
     if table_name == 'typologies':
-        # Colunas com 99%+ de nulos (ruído para o LLM e análise)
         df = df.drop(columns=['area_exterior', 'infraestrutura', 'area_total'], errors='ignore')
     if table_name == 'units':
         df = df.drop(columns=['area_externa'], errors='ignore')
@@ -76,6 +59,10 @@ def create_database():
     if os.path.exists(DB_FILE):
         print(f"O banco de dados '{DB_FILE}' já existe. Removendo para recriar.")
         os.remove(DB_FILE)
+
+    # Cria a pasta para os arquivos limpos, se não existir
+    os.makedirs(CLEANED_DATA_DIR, exist_ok=True) # <-- NOVO
+    print(f"Pasta de dados limpos criada em: '{CLEANED_DATA_DIR}'") # <-- NOVO
 
     conn = sqlite3.connect(DB_FILE)
     print(f"Conexão com o banco de dados '{DB_FILE}' estabelecida.")
@@ -102,6 +89,12 @@ def create_database():
             # 2. APLICA A LIMPEZA DE QUALIDADE DE DADOS (Outliers e Nulos)
             df = clean_dataframe(df, table_name)
             
+            # --- NOVO: SALVA O ARQUIVO EXCEL LIMPO ---
+            cleaned_file_path = os.path.join(CLEANED_DATA_DIR, f"{table_name}_cleaned.xlsx")
+            df.to_excel(cleaned_file_path, index=False)
+            print(f"✅ Arquivo limpo salvo em: '{cleaned_file_path}'")
+            # --- FIM NOVO ---
+            
             # 3. Força conversão de colunas com números muito grandes para string
             for col in df.columns:
                 if pd.api.types.is_numeric_dtype(df[col]):
@@ -114,7 +107,7 @@ def create_database():
 
             # Grava o DataFrame tratado no banco de dados SQLite
             df.to_sql(table_name, conn, if_exists='replace', index=False)
-            print(f"✅ Tabela '{table_name}' criada com sucesso.")
+            print(f"✅ Tabela '{table_name}' criada com sucesso no SQLite.")
 
     except FileNotFoundError as e:
         print(f"\n❌ ERRO: Arquivo não encontrado! Verifique se a pasta '{DATA_DIR}' existe e contém os arquivos Excel.")
