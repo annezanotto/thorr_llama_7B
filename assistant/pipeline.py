@@ -88,30 +88,47 @@ def refine_tables_thorr(question: str, retrieved_tables: list, all_dfs: dict, mo
             column_texts.append(text)
             column_refs.append((tname, col))
     
-    if not column_texts: return {}
-    
-    column_embeddings = model.encode(column_texts)
-    col_index = faiss.IndexFlatL2(column_embeddings.shape[1])
-    col_index.add(np.array(column_embeddings))
-    
-    question_embedding = model.encode([f"query: {question}"])
-    _, I = col_index.search(question_embedding, top_k_columns)
-    
-    selected_cols_per_table = {}
-    for idx in I[0]:
-        tname, col = column_refs[idx]
-        if tname not in selected_cols_per_table:
-            selected_cols_per_table[tname] = set()
-        selected_cols_per_table[tname].add(col)
-    
-    key_columns = config.KEY_COLUMNS
+    if not column_texts:
+        return {}
 
+    selected_cols_per_table = {}
+
+    for tname in retrieved_tables:
+        df = all_dfs.get(tname)
+        if df is None:
+            continue
+
+        # monta textos de exemplo para cada coluna da tabela
+        cols_texts, cols_refs = [], []
+        for col in df.columns:
+            sample_values = df[col].dropna().astype(str).head(5).tolist()
+            cols_texts.append(f"passage: Tabela {tname}, Coluna {col}. Exemplos: {', '.join(sample_values)}")
+            cols_refs.append(col)
+
+        # gera embeddings só dessa tabela
+        if not cols_texts:
+            continue
+        col_embeddings = model.encode(cols_texts)
+        col_index = faiss.IndexFlatL2(col_embeddings.shape[1])
+        col_index.add(np.array(col_embeddings))
+
+        # busca as colunas mais relevantes dessa tabela
+        question_embedding = model.encode([f"query: {question}"])
+        _, I = col_index.search(question_embedding, top_k_columns)
+
+        # guarda as colunas selecionadas
+        selected_cols_per_table[tname] = {cols_refs[i] for i in I[0]}
+
+    # adiciona colunas-chave (id_predio, etc.)
+    key_columns = config.KEY_COLUMNS
     for tname in selected_cols_per_table.keys():
         original_df_cols = all_dfs[tname].columns
         for key_col in key_columns:
             if key_col in original_df_cols:
                 selected_cols_per_table[tname].add(key_col)
 
+    # monta os dataframes refinados
+    refined_dfs = {}
     for tname, cols in selected_cols_per_table.items():
         df = all_dfs[tname]
         filtered_df = df[list(cols)].copy()
@@ -121,8 +138,9 @@ def refine_tables_thorr(question: str, retrieved_tables: list, all_dfs: dict, mo
             else:
                 filtered_df.loc[:, c] = filtered_df[c].fillna('')
         refined_dfs[tname] = filtered_df
-    
+
     return refined_dfs
+
 
 # ==============================================================================
 # PARTE 4: INTEGRAÇÃO COM O LLM PARA GERAÇÃO DE SQL
@@ -179,6 +197,7 @@ def generate_sql_query_from_refined(question: str, refined_dfs: dict) -> str:
 
     # 🔹 Instruções adicionais e exemplos (few-shot)
     guidance_examples = """
+
 ### EXEMPLOS ###
 Pergunta: Quantos edifícios estão localizados na cidade de porto alegre?
 SQL: SELECT COUNT(*) FROM buildings WHERE cidade_endereço = 'porto alegre';
