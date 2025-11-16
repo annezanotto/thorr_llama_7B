@@ -31,7 +31,6 @@ def classify_intent(question: str) -> str:
     try:
         response_text = generate_local_response(system_message, user_message, config.CHAT_MODEL)
         
-        # O modelo local precisa ser instruído a gerar um JSON válido
         response_json = json.loads(response_text)
         intent = response_json.get("intent", "UNKNOWN")
         

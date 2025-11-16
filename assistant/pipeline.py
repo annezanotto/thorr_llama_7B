@@ -11,8 +11,6 @@ import os
 from dotenv import load_dotenv
 import sqlite3
 import difflib
-
-
 from assistant import config
 
 # ==============================================================================
@@ -320,7 +318,6 @@ def handle_data_assistance(question: str, all_dfs: dict) -> str:
     user_message = f"Esquema de banco de dados:\n{schema_string}\n\nPergunta do usuário: {question}\n\nResposta:"
 
     try:
-        # Substituímos a chamada da API da OpenAI pela função do modelo local
         return generate_local_response(system_message, user_message, config.CHAT_MODEL)
     except Exception as e:
         return f"Desculpe, ocorreu um erro ao processar sua solicitação sobre o esquema dos dados: {e}"

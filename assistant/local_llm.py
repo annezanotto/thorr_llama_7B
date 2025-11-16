@@ -38,7 +38,7 @@ def generate_local_response(system_prompt: str, user_prompt: str, model_name: st
         
     # Gera a resposta
     inputs = tokenizer(input_text, return_tensors="pt").to(model.device)
-    outputs = model.generate(**inputs, max_new_tokens=256, temperature=0.7)
+    outputs = model.generate(**inputs, max_new_tokens=256, temperature=0.1)
     
     response = tokenizer.decode(outputs[0], skip_special_tokens=True)
     
