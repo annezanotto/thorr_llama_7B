@@ -38,7 +38,7 @@ def generate_local_response(system_prompt: str, user_prompt: str, model_name: st
         
     # Gera a resposta
     inputs = tokenizer(input_text, return_tensors="pt").to(model.device)
-    outputs = model.generate(**inputs, max_new_tokens=256, temperature=0.1)
+    outputs = model.generate(**inputs, max_new_tokens=256, temperature=0.7)
     
     response = tokenizer.decode(outputs[0], skip_special_tokens=True)
     
@@ -47,4 +47,4 @@ def generate_local_response(system_prompt: str, user_prompt: str, model_name: st
     if response_start_tag in response:
         response = response.split(response_start_tag, 1)[1].strip()
         
-    return response.strip()
+    return response.strip(),

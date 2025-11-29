@@ -210,15 +210,6 @@ Pergunta: Qual a quantidade de prédios da incorporadora melnick even?
 SQL: SELECT COUNT(*) FROM buildings WHERE incorporadora_nome = 'melnick even';
 """
 
-    # 🔹 Regras adicionais para reforçar comportamento correto
-    sql_guidelines = """
-### REGRAS ADICIONAIS ###
-- Sempre prefixe colunas com o nome da tabela (ex: buildings.cidade_endereço).
-- Nunca traduza nomes de colunas (use 'cidade_endereço', não 'ciudad_endereço').
-- Colunas de endereço (rua_endereço, bairro_endereço, cidade_endereço) pertencem APENAS à tabela 'buildings'.
-- Para calcular médias de área, use sempre 'units.area_privativa' (área da unidade) ou 'typologies.area_privada' (área da tipologia).
-- Quando a pergunta envolver localização (bairro ou cidade), faça JOIN com 'buildings'.
-"""
 
     #  Cria o prompt delimitado
     system_message = config.SQL_GENERATION_SYSTEM_PROMPT
@@ -226,16 +217,9 @@ SQL: SELECT COUNT(*) FROM buildings WHERE incorporadora_nome = 'melnick even';
         f"{guidance_examples}\n\n"
         "### ESQUEMA DE BANCO DE DADOS ###\n"
         f"{schema_string}\n"
-        f"{sql_guidelines}\n\n"
         "### PERGUNTA DO USUÁRIO ###\n"
         f"{question}\n\n"
         "### INSTRUÇÃO ###\n"
-        "Gere apenas a consulta SQL correspondente, sem explicações adicionais.\n"
-        "⚠️ IMPORTANTE: Use exatamente os nomes de colunas e tabelas acima, "
-        "sem traduzir ou modificar (ex: use 'cidade_endereço', não 'ciudad_endereço').\n"
-        "Certifique-se também de converter valores de filtros (como nomes de cidades ou status) para letras minúsculas.\n\n"
-        "### SAÍDA ESPERADA ###\n"
-        "Consulta SQL:"
     )
 
     print("-" * 50)
