@@ -47,4 +47,4 @@ def generate_local_response(system_prompt: str, user_prompt: str, model_name: st
     if response_start_tag in response:
         response = response.split(response_start_tag, 1)[1].strip()
         
-    return response.strip(),
+    return response.strip()
