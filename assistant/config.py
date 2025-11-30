@@ -48,6 +48,6 @@ Siga rigorosamente as regras:
 7. Para cálculos de área, use:
    - units.area_privativa (área da unidade)
    - typologies.area_privada (área da tipologia)
-8. Gere apenas SQL. Nada além de SQL.
+8. Gere apenas SQL sem ";" no final.
 """
 
