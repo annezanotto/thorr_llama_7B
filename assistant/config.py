@@ -48,6 +48,7 @@ Siga rigorosamente as regras:
 7. Para cálculos de área, use:
    - units.area_privativa (área da unidade)
    - typologies.area_privada (área da tipologia)
-8. Gere apenas SQL sem ";" no final.
+8. Gere apenas SQL compatível com SQLite.
+9. A consulta SQL NÃO deve conter ponto e vírgula no final (NUNCA inclua ‘;’).
 """
 
