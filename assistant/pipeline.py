@@ -220,6 +220,7 @@ SQL: SELECT COUNT(*) FROM buildings WHERE incorporadora_nome = 'melnick even';
         "### PERGUNTA DO USUÁRIO ###\n"
         f"{question}\n\n"
         "### INSTRUÇÃO ###\n"
+        f"{system_message}\n"
     )
 
     print("-" * 50)
