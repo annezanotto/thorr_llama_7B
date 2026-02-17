@@ -43,7 +43,7 @@ def generate_local_response(system_prompt: str, user_prompt: str, model_name: st
     **inputs, 
     max_new_tokens=256,
     do_sample=True,
-    temperature=0.1
+    temperature=0.7
 )
 
     
