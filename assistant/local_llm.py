@@ -29,12 +29,8 @@ def get_local_llm_pipeline(model_name: str):
 def generate_local_response(system_prompt: str, user_prompt: str, model_name: str) -> str:
     tokenizer, model = get_local_llm_pipeline(model_name)
     
-    # 1. Formato da mensagem de Sistema (System Prompt)
-    system_message_formatted = f"<<SYS>>\n{system_prompt}\n<</SYS>>\n\n"
-    
-    # 2. Formato final do Prompt
-    # O Llama 2 usa a estrutura [INST] para instruções e /s para início/fim de diálogo.
-    input_text = f"<s>[INST] {system_message_formatted}{user_prompt} [/INST]"
+
+    input_text = f"<s>[INST] {system_prompt}\n\n{user_prompt} [/INST]"
         
     # Gera a resposta
     inputs = tokenizer(input_text, return_tensors="pt").to(model.device)
@@ -42,7 +38,7 @@ def generate_local_response(system_prompt: str, user_prompt: str, model_name: st
     outputs = model.generate(
     **inputs, 
     max_new_tokens=256,
-    do_sample=False,
+    do_sample=True,
     temperature=0.7
 )
 

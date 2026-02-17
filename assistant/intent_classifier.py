@@ -30,12 +30,18 @@ def classify_intent(question: str) -> str:
 
     try:
         response_text = generate_local_response(system_message, user_message, config.CHAT_MODEL)
-        
-        response_json = json.loads(response_text)
+        clean_json = response_text.replace('```json', '').replace('```', '').strip()
+
+        if "{" in clean_json and "}" in clean_json:
+            clean_json = clean_json[clean_json.find("{"):clean_json.rfind("}")+1]
+
+        response_json = json.loads(clean_json)
         intent = response_json.get("intent", "UNKNOWN")
+
         
         print(f"DEBUG - Intenção classificada: {intent}")
         return intent
     except Exception as e:
         print(f"❌ Erro ao classificar intenção: {e}")
         return "UNKNOWN"
+    
