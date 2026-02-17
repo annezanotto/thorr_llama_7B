@@ -42,7 +42,7 @@ def generate_local_response(system_prompt: str, user_prompt: str, model_name: st
     outputs = model.generate(
     **inputs, 
     max_new_tokens=256,
-    do_sample=True,
+    do_sample=False,
     temperature=0.7
 )
 
