@@ -11,9 +11,6 @@ def main():
     # Carrega DataFrames do banco de dados (all_dfs)
     dfs = executa_sql.get_all_tables_dfs() 
     
-    # Nota: Como você não está mais usando o THoRR (FAISS), 
-    # não é estritamente necessário carregar o modelo de embeddings aqui 
-    # a menos que o intent_classifier ou outras funções ainda o usem.
     
     print("Assistente pronto! Digite 'sair' para encerrar.")
     print("-" * 50)
@@ -31,7 +28,7 @@ def main():
             # Chamada para a sua nova função que usa o esquema total + 3 exemplos
             sql_query = generate_sql_query_from_total(
                 question=question,
-                refined_dfs=dfs # Passamos todos os DataFrames aqui
+                all_dfs=dfs
             )
             
             print("\n[SQL Gerado]:")
