@@ -1,24 +1,22 @@
 # main.py
 from sentence_transformers import SentenceTransformer
 from assistant import config, executa_sql, pipeline, intent_classifier, conversation
-from assistant.pipeline import run_sql_pipeline
-
+from assistant.pipeline import generate_sql_query_from_total 
 
 def main():
     # --- Etapa de Configuração Inicial ---
     print("Iniciando o assistente de dados Thorr...")
-    print("Carregando dados e modelo de embeddings...")
+    print("Carregando dados...")
 
-    # Carrega DataFrames do novo banco de dados
-    dfs = executa_sql.get_all_tables_dfs()
-    base_texts = config.BASE_TEXTS  # Textos descritivos das tabelas e colunas
-
-    model = SentenceTransformer(config.EMBEDDING_MODEL)
-    index, table_names, _, _ = pipeline.setup_faiss_and_model(dfs, base_texts, model)
+    # Carrega DataFrames do banco de dados (all_dfs)
+    dfs = executa_sql.get_all_tables_dfs() 
+    
+    # Nota: Como você não está mais usando o THoRR (FAISS), 
+    # não é estritamente necessário carregar o modelo de embeddings aqui 
+    # a menos que o intent_classifier ou outras funções ainda o usem.
     
     print("Assistente pronto! Digite 'sair' para encerrar.")
     print("-" * 50)
-
 
     while True:
         question = input("> Digite sua pergunta: ").strip()
@@ -26,32 +24,35 @@ def main():
             print("Até logo!")
             break
 
-        intent = intent_classifier.classify_intent(question)
+        # Classifica a intenção (SQL, Ajuda ou Conversa)
+        intent = intent_classifier.classify_intent(question) 
 
         if intent == 'SQL_QUERY':
-
-            sql_query = run_sql_pipeline(
+            # Chamada para a sua nova função que usa o esquema total + 3 exemplos
+            sql_query = generate_sql_query_from_total(
                 question=question,
-                model=model,
-                index=index,
-                table_names=table_names,
-                all_dfs=dfs,
-                verbose=True  # Mude para False para desligar o debug!
+                refined_dfs=dfs # Passamos todos os DataFrames aqui
             )
             
+            print("\n[SQL Gerado]:")
+            print(sql_query)
+            
             print("\n[Resultado Final]:")
-            result = executa_sql.execute_query(sql_query)
+            # Executa a query gerada no banco SQLite
+            result = executa_sql.execute_query(sql_query) 
             print(result)
             
         elif intent == 'DATA_ASSISTANCE':
-            answer = pipeline.handle_data_assistance(question, dfs)
+            # Explica o esquema das tabelas
+            answer = pipeline.handle_data_assistance(question, dfs) 
             print(f"\nThorr: {answer}")
 
         elif intent == 'GENERAL_CONVERSATION':
-            answer = conversation.handle_general_conversation(question)
-            print(f"\nThorr: {answer}")
+            # Conversa amigável com a persona Thori
+            answer = conversation.handle_general_conversation(question) 
+            print(f"\nThori: {answer}")
         else:
-            print("\nThorr: Desculpe, não consegui entender. Poderia reformular?")
+            print("\nThori: Desculpe, não consegui entender. Poderia reformular?")
         
         print("-" * 50)
 
