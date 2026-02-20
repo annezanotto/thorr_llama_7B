@@ -72,64 +72,52 @@ def generate_full_schema_with_samples(all_dfs: dict) -> str:
 
 def generate_sql_query_from_total(question: str, all_dfs: dict) -> str:
     """
-    Gera a query SQL utilizando o esquema completo e exemplos formatados.
+    Gera a query SQL utilizando o esquema completo, exemplos formatados
+    e as regras rigorosas de geração do config.py.
     """
-    # 1. Obtém a representação das tabelas e dados
+    
+    # 1. Obtém o contexto visual (Esquema + 3 exemplos por tabela)
     full_schema_context = generate_full_schema_with_samples(all_dfs)
 
-    # 2. Relações fixas entre as tabelas de mercado imobiliário
+    # 2. Relações fixas
     relations = (
-        "========================\nRELAÇÕES ENTRE TABELAS\n========================\n"
+        "========================\nRELAÇÕES ENTRE TABELAS (CHAVES)\n========================\n"
         "- buildings.id_predio = typologies.id_predio\n"
         "- buildings.id_predio = units.id_predio\n"
         "- typologies.id_tipologia = units.id_tipologia\n"
         "- units.id_unidade = units_updates.id_unidade\n\n"
     )
 
-    # 3. Few-shot examples para orientar o modelo
-    guidance_examples = """
-### EXEMPLOS DE REFERÊNCIA ###
-Pergunta: Quantos edifícios estão localizados na cidade de porto alegre?
-SQL: SELECT COUNT(*) FROM buildings WHERE cidade_endereço = 'porto alegre';
+    # 3. Importa as regras do config.py
+    # Estas são as regras que você listou (Não traduzir, prefixar colunas, sem ';', etc.)
+    system_rules = config.SQL_GENERATION_SYSTEM_PROMPT
 
-Pergunta: Qual a área média das unidades no bairro jardim europa?
-SQL: SELECT AVG(units.area_privativa)
-FROM units
-JOIN buildings ON units.id_predio = buildings.id_predio
-WHERE buildings.bairro_endereço = 'jardim europa';
-"""
-
-    # 4. Montagem do prompt final
-    system_message = config.SQL_GENERATION_SYSTEM_PROMPT
+    # 4. Montagem do prompt final consolidado
     user_message = (
-        f"{guidance_examples}\n\n"
-        f"{full_schema_context}"
-        f"{relations}"
+        "### INSTRUÇÕES TÉCNICAS CRUCIAIS ###\n"
+        f"{system_rules}\n\n" # Suas 9 regras entram aqui
+        "### REFERÊNCIAS DE EXEMPLO ###\n"
+        "Pergunta: Qual a área média das unidades no bairro jardim europa?\n"
+        "SQL: SELECT AVG(units.area_privativa) FROM units JOIN buildings ON units.id_predio = buildings.id_predio WHERE buildings.bairro_endereço = 'jardim europa';\n\n"
+        f"{full_schema_context}\n" # Esquema e os 3 exemplos por linha
+        f"{relations}\n"
         "========================\n"
         "PERGUNTA DO USUÁRIO\n"
         "========================\n"
         f"{question}\n\n"
-        "### INSTRUÇÃO ###\n"
-        "Gere apenas o SQL puro para responder a pergunta acima, seguindo as regras do sistema."
+        "SQL:"
     )
 
-    # Debug: imprime o prompt no terminal
-    print("-" * 30 + " PROMPT ENVIADO " + "-" * 30)
-    print(user_message)
-    print("-" * 76)
-
     try:
-        # Chamada ao modelo local (Mistral-7B via local_llm.py)
-        sql_query = generate_local_response(system_message, user_message, config.CHAT_MODEL)
+        # Note que enviamos as regras também no system_prompt da função de geração
+        sql_query = generate_local_response(system_rules, user_message, config.CHAT_MODEL)
         
-        # Limpeza de markdown e prefixos indesejados
+        # Limpeza de markdown
         sql_query = sql_query.strip()
-        if sql_query.startswith('```'):
-            sql_query = sql_query.lstrip('` \n').replace('sql', '', 1).strip()
-        if sql_query.endswith('```'):
-            sql_query = sql_query.rstrip('` \n')
+        if '```' in sql_query:
+            sql_query = sql_query.split('```')[1].replace('sql', '').strip()
         
-        # Correção automática de colunas
+        # Correção automática final
         sql_query = fix_invalid_columns(sql_query, all_dfs)
         
         return sql_query.strip()
