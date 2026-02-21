@@ -72,58 +72,62 @@ def generate_full_schema_with_samples(all_dfs: dict) -> str:
 
 def generate_sql_query_from_total(question: str, all_dfs: dict) -> str:
     """
-    Gera a query SQL utilizando o esquema completo, exemplos formatados
-    e as regras rigorosas de geração do config.py.
+    Gera a query SQL consolidando regras rígidas, esquema e exemplos.
     """
-    
-    # 1. Obtém o contexto visual (Esquema + 3 exemplos por tabela)
+    # 1. Recupera o Esquema e Amostras (3 linhas por tabela)
     full_schema_context = generate_full_schema_with_samples(all_dfs)
 
-    # 2. Relações fixas
+    # 2. Define as Relações de Join
     relations = (
-        "========================\nRELAÇÕES ENTRE TABELAS (CHAVES)\n========================\n"
+        "========================\nRELAÇÕES (CHAVES PARA JOIN)\n========================\n"
         "- buildings.id_predio = typologies.id_predio\n"
         "- buildings.id_predio = units.id_predio\n"
         "- typologies.id_tipologia = units.id_tipologia\n"
         "- units.id_unidade = units_updates.id_unidade\n\n"
     )
 
-    # 3. Importa as regras do config.py
-    # Estas são as regras que você listou (Não traduzir, prefixar colunas, sem ';', etc.)
+    # 3. Regras do Config (Suas 9 regras cruciais)
     system_rules = config.SQL_GENERATION_SYSTEM_PROMPT
 
-    # 4. Montagem do prompt final consolidado
+    # 4. Montagem do prompt com "Guardrails" (Proteções)
+    # Colocamos a Pergunta e a Instrução de "SQL POURO" no final para evitar alucinações
     user_message = (
-        "### INSTRUÇÕES TÉCNICAS CRUCIAIS ###\n"
-        f"{system_rules}\n\n" # Suas 9 regras entram aqui
-        "### REFERÊNCIAS DE EXEMPLO ###\n"
-        "Pergunta: Qual a área média das unidades no bairro jardim europa?\n"
-        "SQL: SELECT AVG(units.area_privativa) FROM units JOIN buildings ON units.id_predio = buildings.id_predio WHERE buildings.bairro_endereço = 'jardim europa';\n\n"
-        f"{full_schema_context}\n" # Esquema e os 3 exemplos por linha
+        f"{full_schema_context}\n"
         f"{relations}\n"
+        "========================\n"
+        "REGRAS OBRIGATÓRIAS\n"
+        "========================\n"
+        f"{system_rules}\n\n"
+        "### EXEMPLO DE ESTILO ###\n"
+        "Pergunta: bairros com mais de 5 andares\n"
+        "SQL: SELECT DISTINCT buildings.bairro_endereço FROM buildings WHERE buildings.numero_andares > 5\n\n"
         "========================\n"
         "PERGUNTA DO USUÁRIO\n"
         "========================\n"
         f"{question}\n\n"
-        "SQL:"
+        "Gere o SQL seguindo as regras (sem ';' e com prefixos):"
     )
 
+    print("-" * 30 + " PROMPT ENVIADO " + "-" * 30)
+    print(user_message)
+
     try:
-        # Note que enviamos as regras também no system_prompt da função de geração
+        # Passamos o system_rules como instrução de sistema no modelo
         sql_query = generate_local_response(system_rules, user_message, config.CHAT_MODEL)
         
-        # Limpeza de markdown
-        sql_query = sql_query.strip()
-        if '```' in sql_query:
-            sql_query = sql_query.split('```')[1].replace('sql', '').strip()
+        # Limpeza agressiva de Markdown e quebras de linha
+        sql_query = sql_query.strip().replace('```sql', '').replace('```', '').split(';')[0].strip()
         
-        # Correção automática final
+        # Garante que não haja ponto e vírgula (Regra 9)
+        sql_query = sql_query.replace(';', '')
+
+        # Correção final de colunas
         sql_query = fix_invalid_columns(sql_query, all_dfs)
         
-        return sql_query.strip()
+        return sql_query
 
     except Exception as e:
-        return f"-- Erro ao gerar SQL: {e}"
+        return f"-- Erro na geração: {e}"
 
 # ==============================================================================
 # PARTE 4: ASSISTÊNCIA DE DADOS (Conversacional sobre o esquema)

@@ -51,4 +51,3 @@ Siga rigorosamente as regras:
 8. Gere apenas SQL compatível com SQLite.
 9. A consulta SQL NÃO deve conter ponto e vírgula no final (NUNCA inclua ‘;’).
 """
-
