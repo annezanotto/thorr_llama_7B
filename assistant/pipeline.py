@@ -80,10 +80,11 @@ def generate_sql_query_from_total(question: str, all_dfs: dict) -> str:
     # 2. Define as Relações de Join
     relations = (
         "========================\nRELAÇÕES (CHAVES PARA JOIN)\n========================\n"
-        "- buildings.id_predio = typologies.id_predio\n"
-        "- buildings.id_predio = units.id_predio\n"
-        "- typologies.id_tipologia = units.id_tipologia\n"
-        "- units.id_unidade = units_updates.id_unidade\n\n"
+        "- Clientes.cliente_id = Contratos.cliente_id\n"
+        "- ProdutosFinanciamento.produto_id = Contratos.produto_id\n"
+        "- Contratos.contrato_id = Parcelas.contrato_id\n"
+        "- Contratos.contrato_id = Garantias.contrato_id\n"
+        "- Parcelas.parcela_id = PagamentosRealizados.parcela_id\n\n"
     )
 
     # 3. Regras do Config (Suas 9 regras cruciais)
@@ -99,8 +100,8 @@ def generate_sql_query_from_total(question: str, all_dfs: dict) -> str:
         "========================\n"
         f"{system_rules}\n\n"
         "### EXEMPLO DE ESTILO ###\n"
-        "Pergunta: bairros com mais de 5 andares\n"
-        "SQL: SELECT DISTINCT buildings.bairro_endereço FROM buildings WHERE buildings.numero_andares > 5\n\n"
+        "Pergunta: Quais clientes têm renda mensal acima de 10.000?\n"
+        "SQL: SELECT cliente_id, nome, cpf, renda_mensal FROM Clientes WHERE renda_mensal > 10000 ORDER BY renda_mensal DESC;\n\n"
         "========================\n"
         "PERGUNTA DO USUÁRIO\n"
         "========================\n"
